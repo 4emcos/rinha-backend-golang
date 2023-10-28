@@ -2,12 +2,12 @@ package service
 
 import (
 	"rinha-backend/src/infra"
+	"rinha-backend/src/types"
 
 	"github.com/gin-gonic/gin"
 )
 
-func GetByID(c *gin.Context) {
-	db := infra.ConnectDB()
+func GetByID(c *gin.Context, db types.IPgx) {
 
 	person, err := infra.GetPersonByID(db, c.Param("id"))
 

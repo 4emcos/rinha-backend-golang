@@ -7,27 +7,30 @@ import (
 	"rinha-backend/src/types"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/lib/pq"
 )
 
 func InsertPerson(db types.IPgx, person types.Person) (types.Person, error, int) {
 	var id = uuid.New().String()
 
-	create, err := db.Exec(context.Background(), `
-        INSERT INTO person (id, nome, apelido, nascimento, stack)
-        SELECT $1, $2, $3, $4, $5
-        WHERE NOT EXISTS (
-            SELECT 1 FROM person WHERE apelido = $3
-        )
-    `, &id, person.Nome, person.Apelido, person.Nascimento, pq.Array(person.Stack))
+	fmt.Println("Inserting person: " + person.Apelido)
+	fmt.Println("ID: " + id)
+	_, err := db.Exec(context.Background(), `
+		INSERT INTO pessoas(id, apelido, nome, nascimento, stack) VALUES ($1, $2, $3, $4, $5)`, &id, person.Apelido, person.Nome, person.Nascimento, pq.Array(person.Stack))
 
 	if err != nil {
+		fmt.Println(err)
+		pqErr := err.(*pgconn.PgError)
+		if pqErr.Code == "23505" {
+			return types.Person{}, fmt.Errorf("apelido já cadastrado: %s", person.Apelido), 422
+		}
 		return types.Person{}, err, 500
 	}
 
-	if create.RowsAffected() == 0 {
-		return types.Person{}, fmt.Errorf("apelido já cadastrado: %s", person.Apelido), 422
-	}
+	// if create.RowsAffected() == 0 {
+	// 	return types.Person{}, fmt.Errorf("apelido já cadastrado: %s", person.Apelido), 422
+	// }
 
 	person.ID = &id
 
@@ -41,20 +44,19 @@ func GetByTerm(db types.IPgx, term string) ([]types.Person, error) {
 
 	fmt.Println("Searching for: " + term)
 
-	rows, err := db.Query(context.Background(), "SELECT id, nome, apelido, nascimento, stack FROM person WHERE stack @> $1 OR nome ILIKE $2 OR apelido ILIKE $2", pq.Array([]string{term}), "%"+term+"%")
+	rows, err := db.Query(context.Background(), `SELECT id, apelido, nome, nascimento, stack FROM pessoas p WHERE p.BUSCA_TRGM ILIKE '%' || $1 || '%' LIMIT 50;`, term)
 
 	if err != nil {
 
 		return nil, err
 	}
 
-	defer rows.Close()
-
+	fmt.Println("Data retrieved successfully.")
 	var people []types.Person
 
 	for rows.Next() {
-		var person types.Person
-		err := rows.Scan(&person.ID, &person.Nome, &person.Apelido, &person.Nascimento, &person.Stack)
+		person := types.Person{}
+		err := rows.Scan(&person.ID, &person.Nome, &person.Apelido, &person.Nascimento, pq.Array(&person.Stack))
 		if err != nil {
 			return nil, err
 		}
@@ -66,8 +68,9 @@ func GetByTerm(db types.IPgx, term string) ([]types.Person, error) {
 
 func GetPersonByID(db types.IPgx, id string) (types.Person, error) {
 	var person types.Person
-	err := db.QueryRow(context.Background(), "SELECT id,nome, apelido, nascimento, stack FROM person WHERE id = $1", id).
-		Scan(&person.ID, &person.Nome, &person.Apelido, &person.Nascimento, &person.Stack)
+	fmt.Println("Searching for: " + id)
+	err := db.QueryRow(context.Background(), "SELECT id,nome, apelido, nascimento, stack FROM pessoas WHERE id = $1", id).
+		Scan(&person.ID, &person.Nome, &person.Apelido, &person.Nascimento, pq.Array(&person.Stack))
 
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -81,7 +84,7 @@ func GetPersonByID(db types.IPgx, id string) (types.Person, error) {
 
 func CountPresons(db types.IPgx) (int, error) {
 	var count int
-	err := db.QueryRow(context.Background(), "SELECT COUNT(*) FROM person").Scan(&count)
+	err := db.QueryRow(context.Background(), "SELECT COUNT(*) FROM pessoas").Scan(&count)
 
 	if err != nil {
 		return 0, err

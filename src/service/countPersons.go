@@ -2,12 +2,12 @@ package service
 
 import (
 	"rinha-backend/src/infra"
+	"rinha-backend/src/types"
 
 	"github.com/gin-gonic/gin"
 )
 
-func GetCountPersons(c *gin.Context) {
-	db := infra.ConnectDB()
+func CountPersons(c *gin.Context, db types.IPgx) {
 
 	count, err := infra.CountPresons(db)
 	if err != nil {

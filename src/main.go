@@ -16,24 +16,32 @@ func main() {
 	if port == "" {
 		port = "666"
 	}
-
+	db := infra.ConnectDB()
 	batchChannelCreatePerson := make(chan types.Person, 5000)
 	resultChannel := make(chan infra.CreateResult)
 
-	go processBatch(batchChannelCreatePerson, resultChannel)
+	go processBatch(batchChannelCreatePerson, resultChannel, db)
 
 	router.POST("/pessoas", func(c *gin.Context) {
 		service.SavePerson(c, batchChannelCreatePerson, resultChannel)
 	})
-	router.GET("/pessoas/:id", service.GetByID)
-	router.GET("/pessoas", service.GetByTerm)
-	router.GET("/contagem-pessoas", service.GetCountPersons)
+	router.GET("/pessoas/:id",
+		func(c *gin.Context) {
+			service.GetByID(c, db)
+		})
+	router.GET("/pessoas", func(c *gin.Context) {
+		service.GetByTerm(c, db)
+	})
+
+	router.GET("/contagem-pessoas", func(c *gin.Context) {
+		service.CountPersons(c, db)
+	})
 	router.Run(":" + port)
 }
 
-func processBatch(batchChannel chan types.Person, resultChannel chan infra.CreateResult) {
+func processBatch(batchChannel chan types.Person, resultChannel chan infra.CreateResult, db types.IPgx) {
 	for person := range batchChannel {
-		db := infra.ConnectDB()
+
 		createdPerson, err, code := infra.InsertPerson(db, person)
 
 		if err != nil {

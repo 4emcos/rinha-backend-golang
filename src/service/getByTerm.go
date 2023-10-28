@@ -3,24 +3,17 @@ package service
 import (
 	"rinha-backend/src/infra"
 	"rinha-backend/src/types"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 )
 
-func GetByTerm(c *gin.Context) {
-	var term string
-
-	queryPart := strings.Split(c.Request.URL.RawQuery, "t=")
-
-	if len(queryPart) > 1 {
-		term = queryPart[1]
-	} else {
-		c.JSON(400, gin.H{"error": "termo não informado"})
+func GetByTerm(c *gin.Context, db types.IPgx) {
+	term := c.Query("t")
+	if term == "" {
+		c.Status(400)
 		return
 	}
 
-	db := infra.ConnectDB()
 	person, err := infra.GetByTerm(db, term)
 
 	if err != nil {

@@ -31,7 +31,7 @@ func ConnectDB() types.IPgx {
 
 	maxConnEnv := os.Getenv("MAX_CONNECTIONS")
 	if maxConnEnv == "" {
-		maxConnEnv = "50"
+		maxConnEnv = "30"
 	}
 
 	config, err := pgxpool.ParseConfig(connectionString)

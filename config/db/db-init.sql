@@ -1,15 +1,15 @@
+CREATE TABLE IF NOT EXISTS public.pessoas (
+    id UUID PRIMARY KEY NOT NULL,
+    apelido VARCHAR(32) UNIQUE NOT NULL,
+    nome VARCHAR(100),
+    nascimento CHAR(10) NOT NULL,
+    stack TEXT NULL,
+    busca_trgm TEXT GENERATED ALWAYS AS (
+    LOWER(nome) || LOWER(apelido) || LOWER(stack)
+    ) STORED
+    );
 
-CREATE TABLE IF NOT EXISTS public.person
-(
-    nome text COLLATE pg_catalog."default" NOT NULL,
-    apelido text COLLATE pg_catalog."default" NOT NULL,
-    nascimento text COLLATE pg_catalog."default",
-    id uuid NOT NULL,
-    stack character varying[] COLLATE pg_catalog."default",
-    CONSTRAINT person_pkey PRIMARY KEY (id)
-);
+CREATE EXTENSION PG_TRGM;
 
-create unique index person_nome_apelido_uindex on person (apelido)
-
-
-
+CREATE INDEX CONCURRENTLY IF NOT EXISTS IDX_PESSOAS_BUSCA_TGRM ON public.pessoas USING GIST (BUSCA_TRGM GIST_TRGM_OPS);
+CREATE INDEX CONCURRENTLY IF NOT EXISTS IDXPESSOAS_GIN ON public.pessoas USING GIN (BUSCA_TRGM gin_trgm_ops);

@@ -4,39 +4,47 @@ services:
   api1: &api
     build: .
     depends_on:
-      - db
+      - postgres
     deploy:
       resources:
         limits:
           cpus: '0.15'
           memory: '0.4GB'
     network_mode: host
+    hostname: api1
     environment:
-      DATABASE_URL: postgres://rinha:r1nh4@172.21.86.77:5432/rinha?sslmode=disable
+      DATABASE_URL: postgres://rinha:r1nh4@172.21.86.77:5432/public?sslmode=disable
       HTTP_PORT: 8666
-      MAX_CONNECTIONS: 75
+      MAX_CONNECTIONS: 50
     command: app
 
   # API - Instância 02
   api2:
     <<: *api
     depends_on:
-      - db
+      - postgres
     network_mode: host
+    hostname: api2
     environment:
-      DATABASE_URL: postgres://rinha:r1nh4@db:5432/rinha?sslmode=disable
+      DATABASE_URL: postgres://rinha:r1nh4@172.21.86.77:5432/public?sslmode=disable
       HTTP_PORT: 8667
-      MAX_CONNECTIONS: 75
+      MAX_CONNECTIONS: 50
 
   # Load Balancer
   nginx: 
     image: nginx:latest
     network_mode: host
+    command: ["nginx", "-g", "daemon off;"]
     volumes:
       - ./config/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - api1
       - api2
+    ulimits:
+      nproc: 1000000
+      nofile:
+        soft: 1000000
+        hard: 1000000
     deploy:
       resources:
         limits:
@@ -44,13 +52,13 @@ services:
           memory: '0.5GB'
           
   # Banco de dados
-  db:
+  postgres:
     image: postgres
     hostname: db
     environment:
       POSTGRES_USER: rinha
       POSTGRES_PASSWORD: r1nh4
-      POSTGRES_DB: rinha
+      POSTGRES_DB: public
     volumes:
       - ./config/db/db-init.sql:/docker-entrypoint-initdb.d/init.sql
       - ./config/db/postgresql.conf:/docker-entrypoint-initdb.d/postgresql.conf
